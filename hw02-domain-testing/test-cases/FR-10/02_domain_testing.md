@@ -271,6 +271,17 @@ Có 25 ô: 5 cạnh V, 14 cạnh I và 6 ô Q (5 self-loop, Admin shipping→can
 
 Các cạnh đích khác cho User qua Admin endpoint bị lớp quyền Z01 ngăn; không tạo 25 ca User làm lặp lớp quyền. Ma trận Admin đã bao phủ toàn bộ cặp nguồn/đích có oracle; ma trận User bổ sung phạm vi quyền và hủy.
 
+## Step 4 - Identify Boundary Values
+
+| Biến | Boundary Values có cơ sở SRS |
+| --- | --- |
+| currentStatus/requestedStatus | Không có biên số học. Các trạng thái là nhãn phân loại, không phải số 1-5. |
+| Actor/role, thao tác, JWT | Không có min/max, độ dài hay thời hạn từ FR-10 để làm BVA. |
+| orderId | SRS không quy định min/max; không suy ra từ INTEGER AUTOINCREMENT. |
+| Đơn ở final state | Đây là ranh giới hành vi của State Machine đã bao phủ bằng EC/chuyển trạng thái, không phải Boundary Value có giá trị liền kề số học. |
+
+Không tạo giá trị thời gian hay số lượng giả định; không thiết kế Test Case 2-Point/3-Point BVA trong nhiệm vụ này.
+
 ## Các vấn đề cần human review
 
 1. Admin shipping→canceled: sơ đồ không có cạnh, câu chữ chỉ nói Admin mới có thể thao tác khi shipping; chưa đủ để kết luận hủy được phép.
@@ -279,4 +290,4 @@ Các cạnh đích khác cho User qua Admin endpoint bị lớp quyền Z01 ngă
 4. Thông báo lỗi phải phù hợp theo O10-04 nhưng mã HTTP/nội dung nguyên văn chưa được định nghĩa.
 5. Các quan sát static về shipping/canceled chỉ là rủi ro, chưa xác nhận bug; fixture và khả năng khởi chạy chưa được kiểm tra.
 
-Đã hoàn thành đến Step 3. Các Step sau chưa được đưa vào phiên bản commit này.
+Đã hoàn thành thiết kế 4 Step cho chức năng này. Dừng để human review; chưa thiết kế BVA Test Cases hoặc Test Execution.

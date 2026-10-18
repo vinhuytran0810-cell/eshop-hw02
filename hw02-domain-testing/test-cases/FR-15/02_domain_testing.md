@@ -187,6 +187,17 @@ Thiết kế 30 ca; không thêm mọi kết hợp name/price/category. Mỗi ca
 | Update | FR15-DT-W03 | FR15-DT-K03, V09-V16 | Validation riêng callback PUT; UI trước refresh và persistence; đối chứng sản phẩm khác. |
 | Delete | FR15-DT-W04 | FR15-DT-K04 | Sản phẩm bị xóa vắng khỏi danh sách sau đọc lại. |
 
+## Step 4 - Identify Boundary Values
+
+| Biến | Biên / liền kề có cơ sở | Giới hạn diễn giải |
+| --- | --- | --- |
+| Độ dài name | Với chuỗi ASCII có nội dung: biên hợp lệ dưới 1; liền kề 0 (rỗng, sai) và 2 (hợp lệ). Biên trên 255; liền kề 254 (hợp lệ) và 256 (sai). Dùng A lặp L lần để biểu diễn. | Required + max255; không suy ra tên toàn dấu cách hợp lệ. Unicode code point/code unit cần làm rõ. |
+| price | 0 là điểm cắt bị loại; miền hợp lệ nằm phía >0, phía <0 không hợp lệ. Không có giá trị dương nhỏ nhất hay giá trị liền kề 0 xác định nếu SRS chưa quy định precision. | Không tự đặt min=1, step=1, 0.01 hoặc max từ INTEGER. Chưa chọn bộ 2-Point/3-Point BVA. |
+| category_id / productId | Không có biên trị số từ SRS; membership/ID tồn tại là điều kiện phân loại. | Không dùng max(ID)+1 làm biên nghiệp vụ. |
+| description, imageUrl, token, role, operation | Không có min/max phù hợp do SRS định nghĩa. | Không tự đặt giới hạn text, URL, tuổi token. |
+
+Chỉ liệt kê Boundary Values, chưa tạo Test Case BVA riêng. Độ dài name=0 và price=0 xuất hiện trong Domain EC vì yêu cầu required/>0; không phát sinh thêm bộ ca BVA từ việc này.
+
 ## Các vấn đề cần human review
 
 1. Làm rõ whitespace/trim và cách đếm ký tự Unicode của name; bộ biên minh họa dùng ASCII để tránh tự quyết định.
@@ -196,4 +207,4 @@ Thiết kế 30 ca; không thêm mọi kết hợp name/price/category. Mỗi ca
 5. Dấu hiệu đổi tên hàng loạt ở state UI chưa chứng minh SQL update nhiều dòng; ca Update bắt buộc tách hai tầng.
 6. FR-15 không làm GET products thành Admin-only; các ca hạn chế quyền ở đây chỉ áp mutation.
 
-Đã hoàn thành đến Step 3. Các Step sau chưa được đưa vào phiên bản commit này.
+Đã hoàn thành thiết kế 4 Step cho chức năng này. Dừng để human review; chưa thiết kế BVA Test Cases hoặc Test Execution.

@@ -84,6 +84,193 @@ Endpoint xác minh: `GET /api/orders/my-orders`, `PUT /api/orders/:id/cancel`, `
 
 Có 43 EC. EC riêng cho từng trạng thái/đích mô tả ngữ cảnh hợp lệ; tính hợp lệ của hành động nằm ở EC quan hệ I07 hoặc quyền Z01. Mỗi ca Invalid chỉ mang một Invalid EC; không gán thêm EC trạng thái sai khi chỉ role sai. Không tạo Invalid EC cho orderId âm/không tồn tại, loại JSON, trạng thái database hỏng vì FR-10 chưa đủ hợp đồng Expected Result. Không gán EC xác định đúng/sai cho self-loop hoặc Admin shipping→canceled; các ô này được ghi Q trong ma trận để human review. Token hết hạn/thu hồi không có thời lượng đặc tả, chưa tách EC riêng.
 
+## Step 3 - Select Best Representatives & Design Test Cases
+
+### Preconditions và bộ bước dùng chung
+
+A là User chủ đơn, Admin là tài khoản role=admin. T_A/T_Admin được cấp bằng POST login trong lần thực thi sau; ID đơn lấy từ dữ liệu thật, không tự giả định. Mỗi ca dùng một đơn/snapshot độc lập ở trạng thái nguồn. Chuẩn bị bằng checkout và các cạnh đã được phép; nếu bị chặn thì ghi điểm chặn, không sửa SQL/source để tạo bằng chứng. Không restart backend giữa kiểm tra vì database.js tự khởi tạo lại.
+
+**K**: (1) xác minh actor, đơn, trạng thái nguồn và snapshot; (2) gửi đúng endpoint/header/body trong ca; (3) ghi phản hồi; (4) đọc lại bằng GET my-orders của chủ hoặc GET Admin orders; (5) đối chiếu trạng thái và thông báo.
+
+**W-Admin**: mở tab orders, chọn đơn, thao tác control có sẵn, ghi phản hồi và request; refresh/đọc lại độc lập. **W-User**: mở /profile, thao tác Hủy đơn nếu có, ghi phản hồi và đọc lại. Không bắt một cơ chế toast/ẩn nút cụ thể khi SRS chưa quy định. Các ca UI và API giữ hai tầng coverage riêng.
+
+### Representative Values
+
+| EC ID | Representative Value | Lý do lựa chọn |
+| --- | --- | --- |
+| FR10-EC-A01 | T_Admin hoặc T_A lấy qua login. | Không tự ký bằng secret source. |
+| FR10-EC-A02 | Bỏ Authorization. | Các trường khác vẫn hợp lệ. |
+| FR10-EC-A03 | T_Admin sai chữ ký, giữ payload Admin. | Chỉ credential sai. |
+| FR10-EC-R01 | T_Admin, role=admin. | Role đúng khi cô lập sai trạng thái. |
+| FR10-EC-R02 | T_A, role=user. | Không đổi role của tài khoản. |
+| FR10-EC-O01 | PUT /api/admin/orders/:id/status. | Endpoint đã đọc. |
+| FR10-EC-O02 | PUT /api/orders/:id/cancel, body {}. | Không giả định endpoint hủy nhận đích bất kỳ. |
+| FR10-EC-I01 | O_A xác minh thuộc User A. | Không hardcode ID. |
+| FR10-EC-C01 | pending | Dùng đơn độc lập đã xác minh trạng thái. |
+| FR10-EC-T01 | pending | Tách miền nhãn trạng thái khỏi cạnh hợp lệ. |
+| FR10-EC-C02 | confirmed | Dùng đơn độc lập đã xác minh trạng thái. |
+| FR10-EC-T02 | confirmed | Tách miền nhãn trạng thái khỏi cạnh hợp lệ. |
+| FR10-EC-C03 | shipping | Dùng đơn độc lập đã xác minh trạng thái. |
+| FR10-EC-T03 | shipping | Tách miền nhãn trạng thái khỏi cạnh hợp lệ. |
+| FR10-EC-C04 | delivered | Dùng đơn độc lập đã xác minh trạng thái. |
+| FR10-EC-T04 | delivered | Tách miền nhãn trạng thái khỏi cạnh hợp lệ. |
+| FR10-EC-C05 | canceled | Dùng đơn độc lập đã xác minh trạng thái. |
+| FR10-EC-T05 | canceled | Tách miền nhãn trạng thái khỏi cạnh hợp lệ. |
+| FR10-EC-T06 | archived | Chuỗi ngoài danh sách, không thêm quy tắc kiểu JSON. |
+| FR10-EC-Z01 | User gọi pending→confirmed. | Không chọn cạnh vốn đã bị cấm. |
+| FR10-EC-S01 | pending→confirmed | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S02 | pending→shipping | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S03 | pending→delivered | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S04 | pending→canceled | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S05 | confirmed→pending | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S06 | confirmed→shipping | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S07 | confirmed→delivered | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S08 | confirmed→canceled | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S09 | shipping→pending | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S10 | shipping→confirmed | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S11 | shipping→delivered | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S12 | delivered→pending | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S13 | delivered→confirmed | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S14 | delivered→shipping | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S15 | delivered→canceled | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S16 | canceled→pending | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S17 | canceled→confirmed | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S18 | canceled→shipping | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-S19 | canceled→delivered | Một cặp nhãn xác định; actor và JWT giữ hợp lệ. |
+| FR10-EC-U01 | pending→canceled bằng T_A. | JWT và chủ đơn đúng; chỉ quan hệ hủy thay đổi. |
+| FR10-EC-U02 | confirmed→canceled bằng T_A. | JWT và chủ đơn đúng; chỉ quan hệ hủy thay đổi. |
+| FR10-EC-U03 | shipping→canceled bằng T_A. | JWT và chủ đơn đúng; chỉ quan hệ hủy thay đổi. |
+| FR10-EC-U04 | delivered→canceled bằng T_A. | JWT và chủ đơn đúng; chỉ quan hệ hủy thay đổi. |
+
+### Domain Test Cases - Backend API
+
+| Test Case ID | Preconditions | Inputs | Test Steps | Expected Results | ECs Covered |
+| --- | --- | --- | --- | --- | --- |
+| FR10-DT-K01 | Đơn O_A tồn tại ở pending; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: confirmed}; Bearer T_Admin. | Dùng K; chỉ request một lần từ pending; đọc lại bằng GET Admin orders. | Cho phép chuyển sang confirmed; đọc lại đúng confirmed. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T02, FR10-EC-S01 |
+| FR10-DT-K02 | Đơn O_A tồn tại ở pending; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: shipping}; Bearer T_Admin. | Dùng K; chỉ request một lần từ pending; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn pending. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T03, FR10-EC-S02 |
+| FR10-DT-K03 | Đơn O_A tồn tại ở pending; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: delivered}; Bearer T_Admin. | Dùng K; chỉ request một lần từ pending; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn pending. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T04, FR10-EC-S03 |
+| FR10-DT-K04 | Đơn O_A tồn tại ở pending; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: canceled}; Bearer T_Admin. | Dùng K; chỉ request một lần từ pending; đọc lại bằng GET Admin orders. | Cho phép chuyển sang canceled; đọc lại đúng canceled. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T05, FR10-EC-S04 |
+| FR10-DT-K05 | Đơn O_A tồn tại ở confirmed; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: pending}; Bearer T_Admin. | Dùng K; chỉ request một lần từ confirmed; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn confirmed. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C02, FR10-EC-T01, FR10-EC-S05 |
+| FR10-DT-K06 | Đơn O_A tồn tại ở confirmed; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: shipping}; Bearer T_Admin. | Dùng K; chỉ request một lần từ confirmed; đọc lại bằng GET Admin orders. | Cho phép chuyển sang shipping; đọc lại đúng shipping. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C02, FR10-EC-T03, FR10-EC-S06 |
+| FR10-DT-K07 | Đơn O_A tồn tại ở confirmed; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: delivered}; Bearer T_Admin. | Dùng K; chỉ request một lần từ confirmed; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn confirmed. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C02, FR10-EC-T04, FR10-EC-S07 |
+| FR10-DT-K08 | Đơn O_A tồn tại ở confirmed; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: canceled}; Bearer T_Admin. | Dùng K; chỉ request một lần từ confirmed; đọc lại bằng GET Admin orders. | Cho phép chuyển sang canceled; đọc lại đúng canceled. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C02, FR10-EC-T05, FR10-EC-S08 |
+| FR10-DT-K09 | Đơn O_A tồn tại ở shipping; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: pending}; Bearer T_Admin. | Dùng K; chỉ request một lần từ shipping; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn shipping. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C03, FR10-EC-T01, FR10-EC-S09 |
+| FR10-DT-K10 | Đơn O_A tồn tại ở shipping; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: confirmed}; Bearer T_Admin. | Dùng K; chỉ request một lần từ shipping; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn shipping. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C03, FR10-EC-T02, FR10-EC-S10 |
+| FR10-DT-K11 | Đơn O_A tồn tại ở shipping; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: delivered}; Bearer T_Admin. | Dùng K; chỉ request một lần từ shipping; đọc lại bằng GET Admin orders. | Cho phép chuyển sang delivered; đọc lại đúng delivered. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C03, FR10-EC-T04, FR10-EC-S11 |
+| FR10-DT-K12 | Đơn O_A tồn tại ở delivered; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: pending}; Bearer T_Admin. | Dùng K; chỉ request một lần từ delivered; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn delivered. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C04, FR10-EC-T01, FR10-EC-S12 |
+| FR10-DT-K13 | Đơn O_A tồn tại ở delivered; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: confirmed}; Bearer T_Admin. | Dùng K; chỉ request một lần từ delivered; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn delivered. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C04, FR10-EC-T02, FR10-EC-S13 |
+| FR10-DT-K14 | Đơn O_A tồn tại ở delivered; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: shipping}; Bearer T_Admin. | Dùng K; chỉ request một lần từ delivered; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn delivered. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C04, FR10-EC-T03, FR10-EC-S14 |
+| FR10-DT-K15 | Đơn O_A tồn tại ở delivered; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: canceled}; Bearer T_Admin. | Dùng K; chỉ request một lần từ delivered; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn delivered. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C04, FR10-EC-T05, FR10-EC-S15 |
+| FR10-DT-K16 | Đơn O_A tồn tại ở canceled; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: pending}; Bearer T_Admin. | Dùng K; chỉ request một lần từ canceled; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn canceled. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C05, FR10-EC-T01, FR10-EC-S16 |
+| FR10-DT-K17 | Đơn O_A tồn tại ở canceled; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: confirmed}; Bearer T_Admin. | Dùng K; chỉ request một lần từ canceled; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn canceled. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C05, FR10-EC-T02, FR10-EC-S17 |
+| FR10-DT-K18 | Đơn O_A tồn tại ở canceled; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: shipping}; Bearer T_Admin. | Dùng K; chỉ request một lần từ canceled; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn canceled. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C05, FR10-EC-T03, FR10-EC-S18 |
+| FR10-DT-K19 | Đơn O_A tồn tại ở canceled; T_Admin hợp lệ; snapshot trước thao tác. | PUT /api/admin/orders/O_A/status; {status: delivered}; Bearer T_Admin. | Dùng K; chỉ request một lần từ canceled; đọc lại bằng GET Admin orders. | Trả lỗi phù hợp, trạng thái vẫn canceled. O10-01/O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C05, FR10-EC-T04, FR10-EC-S19 |
+| FR10-DT-U01 | O_A thuộc A ở pending; T_A hợp lệ. | PUT /api/orders/O_A/cancel; {}; Bearer T_A. | Dùng K; snapshot trước/sau qua GET my-orders của A. | Cho phép hủy, trạng thái canceled. O10-01. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O02, FR10-EC-I01, FR10-EC-C01, FR10-EC-T05, FR10-EC-U01 |
+| FR10-DT-U02 | O_A thuộc A ở confirmed; T_A hợp lệ. | PUT /api/orders/O_A/cancel; {}; Bearer T_A. | Dùng K; snapshot trước/sau qua GET my-orders của A. | Cho phép hủy, trạng thái canceled. O10-01. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O02, FR10-EC-I01, FR10-EC-C02, FR10-EC-T05, FR10-EC-U02 |
+| FR10-DT-U03 | O_A thuộc A ở shipping; T_A hợp lệ. | PUT /api/orders/O_A/cancel; {}; Bearer T_A. | Dùng K; snapshot trước/sau qua GET my-orders của A. | Từ chối hủy với lỗi phù hợp; giữ shipping. O10-02/O10-03/O10-04. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O02, FR10-EC-I01, FR10-EC-C03, FR10-EC-T05, FR10-EC-U03 |
+| FR10-DT-U04 | O_A thuộc A ở delivered; T_A hợp lệ. | PUT /api/orders/O_A/cancel; {}; Bearer T_A. | Dùng K; snapshot trước/sau qua GET my-orders của A. | Từ chối hủy với lỗi phù hợp; giữ delivered. O10-02/O10-03/O10-04. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O02, FR10-EC-I01, FR10-EC-C04, FR10-EC-T05, FR10-EC-U04 |
+| FR10-DT-R01 | O_A ở pending; JWT A hợp lệ, role=user. | PUT Admin status; {status:confirmed}; Bearer T_A. | Dùng K; trạng thái nguồn/đích vốn là cạnh cho phép với Admin. | Từ chối thao tác Admin của User, giữ pending; lỗi phù hợp; O10-AUTH/O10-01. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T02, FR10-EC-Z01 |
+| FR10-DT-R02 | O_A ở confirmed; JWT A hợp lệ, role=user. | PUT Admin status; {status:shipping}; Bearer T_A. | Dùng K; trạng thái nguồn/đích vốn là cạnh cho phép với Admin. | Từ chối thao tác Admin của User, giữ confirmed; lỗi phù hợp; O10-AUTH/O10-01. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O01, FR10-EC-I01, FR10-EC-C02, FR10-EC-T03, FR10-EC-Z01 |
+| FR10-DT-R03 | O_A ở shipping; JWT A hợp lệ, role=user. | PUT Admin status; {status:delivered}; Bearer T_A. | Dùng K; trạng thái nguồn/đích vốn là cạnh cho phép với Admin. | Từ chối thao tác Admin của User, giữ shipping; lỗi phù hợp; O10-AUTH/O10-01. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O01, FR10-EC-I01, FR10-EC-C03, FR10-EC-T04, FR10-EC-Z01 |
+| FR10-DT-A01 | O_A ở pending; body confirmed; role trong payload token nếu có là admin. | PUT Admin status; {status:confirmed}; Không Authorization. | Dùng K; đối chiếu bằng một phiên Admin hợp lệ độc lập. | Không cho request cập nhật, giữ pending. O10-AUTH; không ép mã HTTP. | FR10-EC-A02, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T02 |
+| FR10-DT-A02 | O_A ở pending; body confirmed; role trong payload token nếu có là admin. | PUT Admin status; {status:confirmed}; Bearer T_Admin sai chữ ký. | Dùng K; đối chiếu bằng một phiên Admin hợp lệ độc lập. | Không cho request cập nhật, giữ pending. O10-AUTH; không ép mã HTTP. | FR10-EC-A03, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T02 |
+| FR10-DT-X01 | T_Admin hợp lệ; O_A ở pending. | PUT Admin status; {status:archived}. | Dùng K; chỉ nhãn đích sai. | Trả lỗi phù hợp, giữ pending. O10-01/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T06 |
+
+### Domain Test Cases - Web Admin UI
+
+| Test Case ID | Preconditions | Inputs | Test Steps | Expected Results | ECs Covered |
+| --- | --- | --- | --- | --- | --- |
+| FR10-DT-W01 | Tài khoản Admin đăng nhập; tab orders; O_A ở pending. | Thao tác yêu cầu pending→confirmed qua control gốc. | Dùng W-Admin. Nếu cạnh cấm không có control thì ghi nhận UI đã ngăn; không tự thêm nút/đổi DOM. | Thực hiện được cạnh pending→confirmed; đọc lại đúng confirmed. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T02, FR10-EC-S01 |
+| FR10-DT-W02 | Tài khoản Admin đăng nhập; tab orders; O_A ở pending. | Thao tác yêu cầu pending→canceled qua control gốc. | Dùng W-Admin. Nếu cạnh cấm không có control thì ghi nhận UI đã ngăn; không tự thêm nút/đổi DOM. | Thực hiện được cạnh pending→canceled; đọc lại đúng canceled. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C01, FR10-EC-T05, FR10-EC-S04 |
+| FR10-DT-W03 | Tài khoản Admin đăng nhập; tab orders; O_A ở confirmed. | Thao tác yêu cầu confirmed→shipping qua control gốc. | Dùng W-Admin. Nếu cạnh cấm không có control thì ghi nhận UI đã ngăn; không tự thêm nút/đổi DOM. | Thực hiện được cạnh confirmed→shipping; đọc lại đúng shipping. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C02, FR10-EC-T03, FR10-EC-S06 |
+| FR10-DT-W04 | Tài khoản Admin đăng nhập; tab orders; O_A ở confirmed. | Thao tác yêu cầu confirmed→canceled qua control gốc. | Dùng W-Admin. Nếu cạnh cấm không có control thì ghi nhận UI đã ngăn; không tự thêm nút/đổi DOM. | Thực hiện được cạnh confirmed→canceled; đọc lại đúng canceled. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C02, FR10-EC-T05, FR10-EC-S08 |
+| FR10-DT-W05 | Tài khoản Admin đăng nhập; tab orders; O_A ở shipping. | Thao tác yêu cầu shipping→delivered qua control gốc. | Dùng W-Admin. Nếu cạnh cấm không có control thì ghi nhận UI đã ngăn; không tự thêm nút/đổi DOM. | Thực hiện được cạnh shipping→delivered; đọc lại đúng delivered. O10-01. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C03, FR10-EC-T04, FR10-EC-S11 |
+| FR10-DT-W06 | Tài khoản Admin đăng nhập; tab orders; O_A ở canceled. | Thao tác yêu cầu canceled→delivered qua control gốc. | Dùng W-Admin. Nếu cạnh cấm không có control thì ghi nhận UI đã ngăn; không tự thêm nút/đổi DOM. | Không cho canceled chuyển sang delivered; giữ canceled. Nếu có control và thao tác tới backend, phải nhận lỗi phù hợp. O10-02/O10-04. | FR10-EC-A01, FR10-EC-R01, FR10-EC-O01, FR10-EC-I01, FR10-EC-C05, FR10-EC-T04, FR10-EC-S19 |
+
+### Domain Test Cases - Web UI
+
+| Test Case ID | Preconditions | Inputs | Test Steps | Expected Results | ECs Covered |
+| --- | --- | --- | --- | --- | --- |
+| FR10-DT-W07 | User A đã đăng nhập; /profile; O_A ở pending. | Thử Hủy đơn qua control gốc. | Dùng W-User; nếu UI không có nút thì ghi nhận giới hạn tại UI, không chuyển thành ca API. | Cho phép hủy, đọc lại canceled. O10-01. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O02, FR10-EC-I01, FR10-EC-C01, FR10-EC-T05, FR10-EC-U01 |
+| FR10-DT-W08 | User A đã đăng nhập; /profile; O_A ở confirmed. | Thử Hủy đơn qua control gốc. | Dùng W-User; nếu UI không có nút thì ghi nhận giới hạn tại UI, không chuyển thành ca API. | Cho phép hủy, đọc lại canceled. O10-01. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O02, FR10-EC-I01, FR10-EC-C02, FR10-EC-T05, FR10-EC-U02 |
+| FR10-DT-W09 | User A đã đăng nhập; /profile; O_A ở shipping. | Thử Hủy đơn qua control gốc. | Dùng W-User; nếu UI không có nút thì ghi nhận giới hạn tại UI, không chuyển thành ca API. | Không cho User tự hủy shipping; giữ shipping. Nếu request tới backend phải bị từ chối phù hợp. O10-03/O10-04. | FR10-EC-A01, FR10-EC-R02, FR10-EC-O02, FR10-EC-I01, FR10-EC-C03, FR10-EC-T05, FR10-EC-U03 |
+
+### EC Coverage Matrix
+
+| EC ID | Test Cases được thiết kế | Phạm vi |
+| --- | --- | --- |
+| FR10-EC-A01 | FR10-DT-K01, FR10-DT-K02, FR10-DT-K03, FR10-DT-K04, FR10-DT-K05, FR10-DT-K06, FR10-DT-K07, FR10-DT-K08, FR10-DT-K09, FR10-DT-K10, FR10-DT-K11, FR10-DT-K12, FR10-DT-K13, FR10-DT-K14, FR10-DT-K15, FR10-DT-K16, FR10-DT-K17, FR10-DT-K18, FR10-DT-K19, FR10-DT-U01, FR10-DT-U02, FR10-DT-U03, FR10-DT-U04, FR10-DT-R01, FR10-DT-R02, FR10-DT-R03, FR10-DT-X01, FR10-DT-W01, FR10-DT-W02, FR10-DT-W03, FR10-DT-W04, FR10-DT-W05, FR10-DT-W06, FR10-DT-W07, FR10-DT-W08, FR10-DT-W09 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-A02 | FR10-DT-A01 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-A03 | FR10-DT-A02 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-R01 | FR10-DT-K01, FR10-DT-K02, FR10-DT-K03, FR10-DT-K04, FR10-DT-K05, FR10-DT-K06, FR10-DT-K07, FR10-DT-K08, FR10-DT-K09, FR10-DT-K10, FR10-DT-K11, FR10-DT-K12, FR10-DT-K13, FR10-DT-K14, FR10-DT-K15, FR10-DT-K16, FR10-DT-K17, FR10-DT-K18, FR10-DT-K19, FR10-DT-A01, FR10-DT-A02, FR10-DT-X01, FR10-DT-W01, FR10-DT-W02, FR10-DT-W03, FR10-DT-W04, FR10-DT-W05, FR10-DT-W06 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-R02 | FR10-DT-U01, FR10-DT-U02, FR10-DT-U03, FR10-DT-U04, FR10-DT-R01, FR10-DT-R02, FR10-DT-R03, FR10-DT-W07, FR10-DT-W08, FR10-DT-W09 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-O01 | FR10-DT-K01, FR10-DT-K02, FR10-DT-K03, FR10-DT-K04, FR10-DT-K05, FR10-DT-K06, FR10-DT-K07, FR10-DT-K08, FR10-DT-K09, FR10-DT-K10, FR10-DT-K11, FR10-DT-K12, FR10-DT-K13, FR10-DT-K14, FR10-DT-K15, FR10-DT-K16, FR10-DT-K17, FR10-DT-K18, FR10-DT-K19, FR10-DT-R01, FR10-DT-R02, FR10-DT-R03, FR10-DT-A01, FR10-DT-A02, FR10-DT-X01, FR10-DT-W01, FR10-DT-W02, FR10-DT-W03, FR10-DT-W04, FR10-DT-W05, FR10-DT-W06 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-O02 | FR10-DT-U01, FR10-DT-U02, FR10-DT-U03, FR10-DT-U04, FR10-DT-W07, FR10-DT-W08, FR10-DT-W09 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-I01 | FR10-DT-K01, FR10-DT-K02, FR10-DT-K03, FR10-DT-K04, FR10-DT-K05, FR10-DT-K06, FR10-DT-K07, FR10-DT-K08, FR10-DT-K09, FR10-DT-K10, FR10-DT-K11, FR10-DT-K12, FR10-DT-K13, FR10-DT-K14, FR10-DT-K15, FR10-DT-K16, FR10-DT-K17, FR10-DT-K18, FR10-DT-K19, FR10-DT-U01, FR10-DT-U02, FR10-DT-U03, FR10-DT-U04, FR10-DT-R01, FR10-DT-R02, FR10-DT-R03, FR10-DT-A01, FR10-DT-A02, FR10-DT-X01, FR10-DT-W01, FR10-DT-W02, FR10-DT-W03, FR10-DT-W04, FR10-DT-W05, FR10-DT-W06, FR10-DT-W07, FR10-DT-W08, FR10-DT-W09 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-C01 | FR10-DT-K01, FR10-DT-K02, FR10-DT-K03, FR10-DT-K04, FR10-DT-U01, FR10-DT-R01, FR10-DT-A01, FR10-DT-A02, FR10-DT-X01, FR10-DT-W01, FR10-DT-W02, FR10-DT-W07 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-T01 | FR10-DT-K05, FR10-DT-K09, FR10-DT-K12, FR10-DT-K16 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-C02 | FR10-DT-K05, FR10-DT-K06, FR10-DT-K07, FR10-DT-K08, FR10-DT-U02, FR10-DT-R02, FR10-DT-W03, FR10-DT-W04, FR10-DT-W08 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-T02 | FR10-DT-K01, FR10-DT-K10, FR10-DT-K13, FR10-DT-K17, FR10-DT-R01, FR10-DT-A01, FR10-DT-A02, FR10-DT-W01 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-C03 | FR10-DT-K09, FR10-DT-K10, FR10-DT-K11, FR10-DT-U03, FR10-DT-R03, FR10-DT-W05, FR10-DT-W09 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-T03 | FR10-DT-K02, FR10-DT-K06, FR10-DT-K14, FR10-DT-K18, FR10-DT-R02, FR10-DT-W03 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-C04 | FR10-DT-K12, FR10-DT-K13, FR10-DT-K14, FR10-DT-K15, FR10-DT-U04 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-T04 | FR10-DT-K03, FR10-DT-K07, FR10-DT-K11, FR10-DT-K19, FR10-DT-R03, FR10-DT-W05, FR10-DT-W06 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-C05 | FR10-DT-K16, FR10-DT-K17, FR10-DT-K18, FR10-DT-K19, FR10-DT-W06 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-T05 | FR10-DT-K04, FR10-DT-K08, FR10-DT-K15, FR10-DT-U01, FR10-DT-U02, FR10-DT-U03, FR10-DT-U04, FR10-DT-W02, FR10-DT-W04, FR10-DT-W07, FR10-DT-W08, FR10-DT-W09 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-T06 | FR10-DT-X01 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-Z01 | FR10-DT-R01, FR10-DT-R02, FR10-DT-R03 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S01 | FR10-DT-K01, FR10-DT-W01 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S02 | FR10-DT-K02 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S03 | FR10-DT-K03 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S04 | FR10-DT-K04, FR10-DT-W02 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S05 | FR10-DT-K05 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S06 | FR10-DT-K06, FR10-DT-W03 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S07 | FR10-DT-K07 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S08 | FR10-DT-K08, FR10-DT-W04 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S09 | FR10-DT-K09 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S10 | FR10-DT-K10 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S11 | FR10-DT-K11, FR10-DT-W05 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S12 | FR10-DT-K12 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S13 | FR10-DT-K13 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S14 | FR10-DT-K14 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S15 | FR10-DT-K15 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S16 | FR10-DT-K16 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S17 | FR10-DT-K17 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S18 | FR10-DT-K18 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-S19 | FR10-DT-K19, FR10-DT-W06 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-U01 | FR10-DT-U01, FR10-DT-W07 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-U02 | FR10-DT-U02, FR10-DT-W08 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-U03 | FR10-DT-U03, FR10-DT-W09 | Coverage thiết kế; chưa thực thi |
+| FR10-EC-U04 | FR10-DT-U04 | Coverage thiết kế; chưa thực thi |
+
+Thiết kế 38 ca. Các cạnh sai khác nhau được giữ riêng để đáp ứng ma trận đầy đủ, không nhân tổ hợp JWT lỗi cho mọi cạnh. Ba ca R01-R03 tách quyền cho ba hành động Admin với cạnh vốn hợp lệ; các ca chuyển sai giữ JWT Admin đúng. UI bổ sung khả năng thao tác/control hiển thị; không được dùng UI không có nút thay bằng chứng API từ chối. Coverage trên là coverage thiết kế, không phải kết quả chạy.
+
+### State Transition Coverage Matrix - Admin
+
+Ký hiệu: V = cạnh hợp lệ; I = cạnh cấm; Q = cần làm rõ, không đưa Expected Result tự suy diễn. Mỗi ô V/I liên kết ca API; các ca UI bổ sung nằm ở bảng Test Cases.
+
+| Nguồn \ Đích | pending | confirmed | shipping | delivered | canceled |
+| --- | --- | --- | --- | --- | --- |
+| pending | Q | V FR10-DT-K01 | I FR10-DT-K02 | I FR10-DT-K03 | V FR10-DT-K04 |
+| confirmed | I FR10-DT-K05 | Q | V FR10-DT-K06 | I FR10-DT-K07 | V FR10-DT-K08 |
+| shipping | I FR10-DT-K09 | I FR10-DT-K10 | Q | V FR10-DT-K11 | Q |
+| delivered | I FR10-DT-K12 | I FR10-DT-K13 | I FR10-DT-K14 | Q | I FR10-DT-K15 |
+| canceled | I FR10-DT-K16 | I FR10-DT-K17 | I FR10-DT-K18 | I FR10-DT-K19 | Q |
+
+Có 25 ô: 5 cạnh V, 14 cạnh I và 6 ô Q (5 self-loop, Admin shipping→canceled). 19/19 cạnh có oracle rõ được liên kết Test Case; không báo 25/25 đã kiểm thử.
+
+### State Transition Coverage Matrix - User
+
+| Trạng thái nguồn | Hủy → canceled | Tự xác nhận/giao/hoàn tất |
+| --- | --- | --- |
+| pending | V FR10-DT-U01 | I: FR10-DT-R01 (pending→confirmed) |
+| confirmed | V FR10-DT-U02 | I: FR10-DT-R02 (confirmed→shipping) |
+| shipping | I FR10-DT-U03 | I: FR10-DT-R03 (shipping→delivered) |
+| delivered | I FR10-DT-U04 | Không có hành động tiến trình hợp lệ từ final state; không cần ghép đồng thời sai role và sai cạnh. |
+| canceled | Q: canceled→canceled là lệnh lặp, chưa có hợp đồng phản hồi. | Không có hành động tiến trình hợp lệ từ final state; không cần ghép đồng thời sai role và sai cạnh. |
+
+Các cạnh đích khác cho User qua Admin endpoint bị lớp quyền Z01 ngăn; không tạo 25 ca User làm lặp lớp quyền. Ma trận Admin đã bao phủ toàn bộ cặp nguồn/đích có oracle; ma trận User bổ sung phạm vi quyền và hủy.
+
 ## Các vấn đề cần human review
 
 1. Admin shipping→canceled: sơ đồ không có cạnh, câu chữ chỉ nói Admin mới có thể thao tác khi shipping; chưa đủ để kết luận hủy được phép.
@@ -92,4 +279,4 @@ Có 43 EC. EC riêng cho từng trạng thái/đích mô tả ngữ cảnh hợp
 4. Thông báo lỗi phải phù hợp theo O10-04 nhưng mã HTTP/nội dung nguyên văn chưa được định nghĩa.
 5. Các quan sát static về shipping/canceled chỉ là rủi ro, chưa xác nhận bug; fixture và khả năng khởi chạy chưa được kiểm tra.
 
-Đã hoàn thành đến Step 2. Các Step sau chưa được đưa vào phiên bản commit này.
+Đã hoàn thành đến Step 3. Các Step sau chưa được đưa vào phiên bản commit này.

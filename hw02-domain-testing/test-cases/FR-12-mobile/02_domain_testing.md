@@ -261,6 +261,16 @@ Có 54 ca: 52 ca API (13 route × 4 profile) và 2 ca Mobile UI chuẩn bị phi
 
 Mọi ô đều là Test Case đã thiết kế, chưa thực thi. Không báo 52 ca này là thao tác trực tiếp qua native UI; 0/13 protected routes có control native tương ứng trong source hiện tại. Hai ca Mobile UI chỉ cung cấp phiên/provenance.
 
+## Step 4 - Identify Boundary Values
+
+| Input | Boundary Values theo SRS |
+| --- | --- |
+| JWT | Không có chiều dài token, tuổi token, thời hạn hay clock skew được định nghĩa; không tự đặt thời gian hết hạn. |
+| role, endpoint, method, nguồn phiên | Miền phân loại, không có giá trị liền kề số học. Không gán số thứ tự role để làm BVA. |
+| Resource ID / body nominal | FR-12 không định nghĩa min/max nghiệp vụ cho chúng; biên của name/price thuộc FR-15, không đưa thành BVA của quyền. |
+
+Không có Boundary Values số học của chính Access Control được FR-12 quy định. Ranh giới được phép/từ chối là quan hệ logic JWT hợp lệ AND role=admin, đã phân bằng EC. Chưa thiết kế BVA Test Cases hoặc thực thi kiểm thử.
+
 ## Các vấn đề cần human review
 
 1. Xác nhận việc đánh giá Pool D chấp nhận native login + Backend API replay theo phiên Mobile khi không có native Admin UI. Không tự tạo FR-12 Mobile mới.
@@ -271,4 +281,4 @@ Mọi ô đều là Test Case đã thiết kế, chưa thực thi. Không báo 5
 6. Admin đạt điều kiện quyền không đồng nghĩa mọi business operation phải luôn thành công; đối chiếu fixture và SRS chức năng phụ thuộc. Ca âm phải xác minh không có đọc dữ liệu protected/side effect, không chỉ nhận lỗi.
 7. Không dùng việc Mobile không có nút Admin làm bằng chứng backend đã an toàn; source chỉ là rủi ro tĩnh, chưa xác nhận bug.
 
-Đã hoàn thành đến Step 3. Các Step sau chưa được đưa vào phiên bản commit này.
+Đã hoàn thành thiết kế 4 Step cho chức năng này. Dừng để human review; chưa thiết kế BVA Test Cases hoặc Test Execution.

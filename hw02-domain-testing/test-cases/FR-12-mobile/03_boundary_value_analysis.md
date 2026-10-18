@@ -24,4 +24,52 @@ SRS FR-12, `README.md:176-179`: Admin subsystem chỉ role=admin; tất cả /ap
 | --- | --- | --- | --- | --- | --- |
 | N/A | Tất cả Input của Access Control | N/A | Không có | Không có ordered boundary được FR-12 quy định. | README.md:176-179 |
 
-Đã hoàn thành mốc phân tích khả năng áp dụng và nhận diện biên. Phần thiết kế/coverage sẽ được bổ sung ở commit tiếp theo; chưa thực thi kiểm thử.
+## 3. Bảng 2-point BVA và 3-point BVA
+
+### 2-point BVA
+
+| Biên | Bộ giá trị | Valid/Invalid | Kết luận |
+| --- | --- | --- | --- |
+| N/A | Không có | N/A | Không áp dụng; không tạo giá trị/Test Case giả. |
+
+### 3-point BVA
+
+| Biên | Bộ giá trị | Valid/Invalid | Kết luận |
+| --- | --- | --- | --- |
+| N/A | Không có | N/A | Không áp dụng; không tạo giá trị/Test Case giả. |
+
+JWT hợp lệ AND role=admin tạo ranh giới logic cho phép/từ chối, không phải BVA số học. Không tự tạo JWT dài N/N+1, token hết hạn sau 30 giây/1 giờ, giới hạn số quyền hoặc thứ tự endpoint. Expired token nếu có thuộc EC không hợp lệ trong Domain Testing, không tạo phép thử thời gian khi SRS chưa quy định lifetime.
+
+Mobile UI chỉ có login khách hàng; không có control Admin để kiểm thử trực tiếp. Domain Testing đã tách 2 ca native login chuẩn bị phiên và 52 ca Backend API replay theo token phiên Mobile. BVA N/A ở cả native UI và API authorization; không đổi nhãn các ca này thành BVA. Nếu kiểm thử API sau này vẫn cần provenance token từ native login, không dùng API login trực tiếp rồi gọi đó là Mobile UI.
+
+## 4. BVA Test Cases
+
+**N/A - không có BVA Test Cases.** Không gán ID giả, không chạy ca Domain Testing/State Transition dưới tên BVA; 0 ca là kết quả phân tích có căn cứ, không phải thiếu thiết kế.
+
+| Test Case ID | Preconditions | Input | Test Steps | Expected Result | Boundary Covered |
+| --- | --- | --- | --- | --- | --- |
+| N/A | N/A | N/A | Không thực thi | BVA không áp dụng theo SRS hiện tại | N/A |
+
+## 5. Boundary Coverage Matrix
+
+| Input / phạm vi | 2-point | 3-point | Test Cases | Kết luận |
+| --- | --- | --- | --- | --- |
+| JWT / Authorization | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| role claim | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| Protected method/route | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| HTTP method | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| Body nghiệp vụ nominal | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| Resource ID / trạng thái fixture | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| Nguồn phiên Mobile | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+
+Coverage BVA là N/A, không ghi 100% hoặc giả định có boundary được kiểm thử.
+
+## 6. Giả định, giới hạn và các điểm cần human review
+
+1. BVA N/A cho FR-12 theo SRS hiện tại; Domain Testing vẫn cần kiểm tra JWT, role và từng protected API.
+2. Không diễn giải việc Mobile không có Admin UI thành bằng chứng server bảo vệ quyền. Không sửa/thêm màn hình hoặc API_URL để tạo BVA.
+3. SRS chưa có JWT lifetime, revocation sau logout, clock skew, độ dài token hay số lượng quyền tối đa. Không tự đặt biên theo hiện trạng source.
+4. IP LAN hardcode có reachable hay không và khả năng capture native token là Preconditions cho thực thi sau, không phải boundary nghiệp vụ.
+5. Các biên payload của FR-15 được báo cáo riêng. Không nhập chúng vào BVA quyền để tăng số ca.
+
+Đã hoàn thành thiết kế Task 03 cho chức năng này. Dừng để human review; chưa chuyển sang Test Execution.

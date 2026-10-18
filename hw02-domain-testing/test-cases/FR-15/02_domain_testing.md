@@ -38,6 +38,36 @@ Source: `frontend-admin/src/App.jsx`, `fetchData()` dòng 41, `handleLogin()` d�
 
 Endpoint có thật: GET/POST `/api/products`; GET/PUT/DELETE `/api/products/:id`; GET `/api/categories`. CSV import thuộc FR-16, không tính vào CRUD. Không suy ra yêu cầu xác nhận xóa hoặc product-name uniqueness.
 
+## Step 2 - Identify Equivalence Classes
+
+| EC ID | Input / quan hệ | Điều kiện | Loại | SRS | Lý do phân chia |
+| --- | --- | --- | --- | --- | --- |
+| FR15-EC-A01 | I01 | JWT hợp lệ. | Valid | P15-AUTH | Credential đúng làm nominal. |
+| FR15-EC-A02 | I01 | Không có JWT khi mutation. | Invalid | P15-AUTH | Thiếu xác thực khác token hỏng. |
+| FR15-EC-A03 | I01 | JWT không hợp lệ khi mutation. | Invalid | P15-AUTH | Một đại diện credential sai. |
+| FR15-EC-R01 | I02 | Admin thao tác CRUD. | Valid | P15-01/P15-AUTH | Actor được phép. |
+| FR15-EC-R02 | I02 | JWT User hợp lệ yêu cầu mutation. | Invalid | P15-AUTH | Chỉ sai quyền. |
+| FR15-EC-O01 | I03 | Create. | Valid | P15-01 | Mỗi operation có tác động riêng. |
+| FR15-EC-O02 | I03 | Read. | Valid | P15-01 | Mỗi operation có tác động riêng. |
+| FR15-EC-O03 | I03 | Update. | Valid | P15-01 | Mỗi operation có tác động riêng. |
+| FR15-EC-O04 | I03 | Delete. | Valid | P15-01 | Mỗi operation có tác động riêng. |
+| FR15-EC-I01 | I04 | Sản phẩm đích tồn tại. | Valid | P15-01 | Dùng dữ liệu có thật. |
+| FR15-EC-N01 | I05 | Tên thông thường không rỗng, dài không quá 255 ký tự. | Valid | P15-02 | Tên có nội dung trong giới hạn. |
+| FR15-EC-N02 | I05 | Không cung cấp giá trị tên (bỏ trường hoặc chuỗi rỗng). | Invalid | P15-02 | Cùng vi phạm required; dùng một đại diện, không nhân ca thiếu/rỗng khi SRS không tách cách xử lý. |
+| FR15-EC-N03 | I05 | Tên dài hơn 255 ký tự. | Invalid | P15-02 | Vi phạm max riêng với required. |
+| FR15-EC-P01 | I06 | Có giá trị giá là số dương. | Valid | P15-03 | Miền giá hợp lệ. |
+| FR15-EC-P02 | I06 | Không cung cấp giá trị price. | Invalid | P15-03 | Required khác số 0 được cung cấp. |
+| FR15-EC-P03 | I06 | price bằng 0. | Invalid | P15-03 | Điểm bị loại bởi >0; tách khỏi âm để không bỏ lỗi so sánh >=0. |
+| FR15-EC-P04 | I06 | price là số âm. | Invalid | P15-03 | Miền số âm khác thiếu giá hoặc 0. |
+| FR15-EC-P05 | I06 | Giá trị được cung cấp không diễn giải được thành số. | Invalid | P15-03 | Vi phạm yêu cầu là số. |
+| FR15-EC-C01 | I07 | Danh mục đã chọn tồn tại trong danh sách. | Valid | P15-04 | Miền hợp lệ theo membership, không theo trị số ID. |
+| FR15-EC-C02 | I07 | Không chọn/cung cấp danh mục. | Invalid | P15-04 | Vi phạm required. |
+| FR15-EC-C03 | I07 | Có category_id nhưng không thuộc danh sách có sẵn. | Invalid | P15-04 | Có giá trị nhưng sai membership. |
+| FR15-EC-D01 | I08 | Mô tả thông thường được cung cấp. | Valid | P15-01 | Trường UI có thật, chưa có Invalid theo SRS. |
+| FR15-EC-V01 | I09 | Giá trị imageUrl thông thường được cung cấp. | Valid | P15-01 | Trường UI có thật, không suy ra URL-validation. |
+
+Có 23 EC. Không ép Invalid EC cho operation, ID tồn tại, description, imageUrl hoặc tập đối chứng khi SRS không có điều kiện phù hợp. ID không tồn tại, tên chỉ dấu cách, cách đếm Unicode, thiếu trường ở partial Update và numeric string cần human review. N02 gộp thiếu/rỗng theo cùng required, không tách ca trùng chỉ do JSON shape. Giá số 0, âm, thiếu và không phải số tách theo điều kiện nghiệp vụ. Các ca mutation gửi đủ body, ngoại trừ trường required đang được cô lập.
+
 ## Các vấn đề cần human review
 
 1. Làm rõ whitespace/trim và cách đếm ký tự Unicode của name; bộ biên minh họa dùng ASCII để tránh tự quyết định.
@@ -47,4 +77,4 @@ Endpoint có thật: GET/POST `/api/products`; GET/PUT/DELETE `/api/products/:id
 5. Dấu hiệu đổi tên hàng loạt ở state UI chưa chứng minh SQL update nhiều dòng; ca Update bắt buộc tách hai tầng.
 6. FR-15 không làm GET products thành Admin-only; các ca hạn chế quyền ở đây chỉ áp mutation.
 
-Đã hoàn thành đến Step 1. Các Step sau chưa được đưa vào phiên bản commit này.
+Đã hoàn thành đến Step 2. Các Step sau chưa được đưa vào phiên bản commit này.

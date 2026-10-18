@@ -24,4 +24,49 @@ SRS `README.md:143-162` (FR-10) định nghĩa năm trạng thái, các cạnh, 
 | --- | --- | --- | --- | --- | --- |
 | N/A | Tất cả Input FR-10 | N/A | Không có | Không có biến có thứ tự và ranh giới số từ SRS. | README.md:143-162 |
 
-Đã hoàn thành mốc phân tích khả năng áp dụng và nhận diện biên. Phần thiết kế/coverage sẽ được bổ sung ở commit tiếp theo; chưa thực thi kiểm thử.
+## 3. Bảng 2-point BVA và 3-point BVA
+
+### 2-point BVA
+
+| Biên | Bộ giá trị | Valid/Invalid | Kết luận |
+| --- | --- | --- | --- |
+| N/A | Không có | N/A | Không áp dụng; không tạo giá trị/Test Case giả. |
+
+### 3-point BVA
+
+| Biên | Bộ giá trị | Valid/Invalid | Kết luận |
+| --- | --- | --- | --- |
+| N/A | Không có | N/A | Không áp dụng; không tạo giá trị/Test Case giả. |
+
+Không gán pending=1, confirmed=2,... để dùng ±1. Trạng thái shipping/final state có ý nghĩa ranh giới hành vi nhưng không phải BVA số học. Không nhập các Test Cases State Transition đã có trong 02_domain_testing.md rồi đổi nhãn thành BVA. Các thông tin order amount, quantity hoặc login lockout thuộc chức năng khác, không kéo vào chỉ để có Boundary Values cho FR-10.
+
+## 4. BVA Test Cases
+
+**N/A - không có BVA Test Cases.** Không gán ID giả, không chạy ca Domain Testing/State Transition dưới tên BVA; 0 ca là kết quả phân tích có căn cứ, không phải thiếu thiết kế.
+
+| Test Case ID | Preconditions | Input | Test Steps | Expected Result | Boundary Covered |
+| --- | --- | --- | --- | --- | --- |
+| N/A | N/A | N/A | Không thực thi | BVA không áp dụng theo SRS hiện tại | N/A |
+
+## 5. Boundary Coverage Matrix
+
+| Input / phạm vi | 2-point | 3-point | Test Cases | Kết luận |
+| --- | --- | --- | --- | --- |
+| JWT / phiên | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| Actor / role | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| Thao tác | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| orderId / chủ đơn | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| currentStatus | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| requestedStatus | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+| Quan hệ chuyển trạng thái | N/A | N/A | Không có | Không có boundary số học xác định theo SRS. |
+
+Coverage BVA là N/A, không ghi 100% hoặc giả định có boundary được kiểm thử.
+
+## 6. Giả định, giới hạn và các điểm cần human review
+
+1. Kết luận BVA N/A áp dụng với SRS hiện tại, không có nghĩa FR-10 không cần kiểm thử: Domain Testing và State Transition Coverage Matrix vẫn là tài liệu phù hợp.
+2. Admin shipping→canceled và self-loop còn cần human review như báo cáo Domain Testing; giải quyết chúng không tạo ra bước nhảy số học.
+3. Không giả định timeout giao hàng, giới hạn số lần đổi status hoặc min/max ID. Source không phải nguồn bổ sung các ràng buộc này.
+4. Phân biệt User Web, Web Admin và Backend API như báo cáo Domain Testing; không chạy các tầng này trong nhiệm vụ BVA.
+
+Đã hoàn thành thiết kế Task 03 cho chức năng này. Dừng để human review; chưa chuyển sang Test Execution.

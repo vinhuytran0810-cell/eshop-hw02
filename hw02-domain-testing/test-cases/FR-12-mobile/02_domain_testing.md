@@ -54,6 +54,39 @@ Có 13 method/route thuộc phạm vi FR-12 đã triển khai. Không có POST/P
 
 Nếu chưa có cách capture JWT từ login bằng công cụ ngoài ứng dụng được cho phép, ghi chưa đủ Preconditions cho replay; không tự thêm màn hình hay sửa source, không thay API login trực tiếp rồi gọi đó là bằng chứng Mobile. Không yêu cầu token server bị revoke sau logout vì SRS chưa nêu.
 
+## Step 2 - Identify Equivalence Classes
+
+| EC ID | Input / quan hệ | Điều kiện | Loại | SRS | Lý do phân chia |
+| --- | --- | --- | --- | --- | --- |
+| FR12M-EC-J01 | I01 | JWT hợp lệ. | Valid | A12-02/A12-03 | Tách authentication khỏi authorization. |
+| FR12M-EC-J02 | I01 | Không gửi JWT vào protected request. | Invalid | A12-02/A12-03 | Thiếu credential khác token có nhưng sai. |
+| FR12M-EC-J03 | I01 | Có JWT nhưng không hợp lệ. | Invalid | A12-02/A12-03 | Dùng một đại diện chữ ký sai, không nhân mọi lỗi parse. |
+| FR12M-EC-R01 | I02 | JWT hợp lệ, role=admin. | Valid | A12-01/A12-02/A12-03 | Điều kiện quyền đúng. |
+| FR12M-EC-R02 | I02 | JWT hợp lệ nhưng không có role=admin. | Invalid | A12-01/A12-02/A12-03 | Credential hợp lệ mà quyền không đủ; bao gồm user/role thiếu hoặc khác, không cần tạo cách cấp token thiếu claim. |
+| FR12M-EC-H01 | I04 | Method GET trên route đã đăng ký. | Valid | A12-02/A12-03 | Method xác định loại thao tác và policy coverage. |
+| FR12M-EC-H02 | I04 | Method POST trên route đã đăng ký. | Valid | A12-02/A12-03 | Method xác định loại thao tác và policy coverage. |
+| FR12M-EC-H03 | I04 | Method PUT trên route đã đăng ký. | Valid | A12-02/A12-03 | Method xác định loại thao tác và policy coverage. |
+| FR12M-EC-H04 | I04 | Method DELETE trên route đã đăng ký. | Valid | A12-02/A12-03 | Method xác định loại thao tác và policy coverage. |
+| FR12M-EC-B01 | I05 | Payload nghiệp vụ nominal đúng theo route; GET/DELETE không cần body. | Valid | A12-02/A12-03; SRS phụ thuộc theo inventory | Giữ input nghiệp vụ đúng khi phân tích gate quyền. |
+| FR12M-EC-I01 | I06 | Đích/quan hệ fixture tồn tại, trạng thái hợp lệ theo route. | Valid | A12-02/A12-03; FR-10/19 hỗ trợ fixture | Tránh request bị chặn bởi nghiệp vụ khác. |
+| FR12M-EC-M01 | I07 | Phiên User được thiết lập trực tiếp từ native Mobile UI. | Valid | A12-DEP | Mobile có login khách hàng; phiên User không luôn là invalid. |
+| FR12M-EC-M02 | I07 | Phiên Admin được thiết lập trực tiếp từ native Mobile UI. | Valid | A12-DEP | Không có nhánh login cấm Admin, nhưng không suy ra có Admin screen. |
+| FR12M-EC-E01 | I03 | POST /api/products thuộc inventory bảo vệ. | Valid | A12-03 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E02 | I03 | PUT /api/products/:id thuộc inventory bảo vệ. | Valid | A12-03 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E03 | I03 | DELETE /api/products/:id thuộc inventory bảo vệ. | Valid | A12-03 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E04 | I03 | POST /api/categories thuộc inventory bảo vệ. | Valid | A12-03 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E05 | I03 | PUT /api/categories/:id thuộc inventory bảo vệ. | Valid | A12-03 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E06 | I03 | DELETE /api/categories/:id thuộc inventory bảo vệ. | Valid | A12-03 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E07 | I03 | POST /api/admin/import-products thuộc inventory bảo vệ. | Valid | A12-02 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E08 | I03 | POST /api/admin/coupons thuộc inventory bảo vệ. | Valid | A12-02 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E09 | I03 | DELETE /api/admin/coupons/:id thuộc inventory bảo vệ. | Valid | A12-02 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E10 | I03 | GET /api/admin/users thuộc inventory bảo vệ. | Valid | A12-02 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E11 | I03 | DELETE /api/admin/users/:id thuộc inventory bảo vệ. | Valid | A12-02 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E12 | I03 | GET /api/admin/orders thuộc inventory bảo vệ. | Valid | A12-02 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+| FR12M-EC-E13 | I03 | PUT /api/admin/orders/:id/status thuộc inventory bảo vệ. | Valid | A12-02 | Giữ mỗi route riêng vì middleware có thể khác nhau; không chỉ kiểm tra một route đại diện cho tất cả. |
+
+Có 26 EC. Khi JWT thiếu/sai, role claim chưa được xác thực nên không gán thêm Invalid EC R02: gate role chỉ phân sau J01. Với JWT hợp lệ User, J01 là Valid và R02 là Invalid duy nhất. Với BAD, giữ payload Admin để chỉ làm sai chữ ký; không đồng thời sửa payload role. Token hết hạn là một dạng JWT không hợp lệ nếu lấy được token có thời hạn thực sự do hệ thống cấp, nhưng SRS không cấp thời hạn hay cơ chế tạo token đó; chưa tách EC/ca riêng theo thời gian. Các lớp I05/I06 chỉ giữ nominal, không kéo toàn bộ EC validation FR-15/FR-17 vào báo cáo FR-12. Method/route ngoài inventory và lỗi kết nối không có oracle authorization từ SRS nên chưa tạo Invalid EC giả.
+
 ## Các vấn đề cần human review
 
 1. Xác nhận việc đánh giá Pool D chấp nhận native login + Backend API replay theo phiên Mobile khi không có native Admin UI. Không tự tạo FR-12 Mobile mới.
@@ -64,4 +97,4 @@ Nếu chưa có cách capture JWT từ login bằng công cụ ngoài ứng dụ
 6. Admin đạt điều kiện quyền không đồng nghĩa mọi business operation phải luôn thành công; đối chiếu fixture và SRS chức năng phụ thuộc. Ca âm phải xác minh không có đọc dữ liệu protected/side effect, không chỉ nhận lỗi.
 7. Không dùng việc Mobile không có nút Admin làm bằng chứng backend đã an toàn; source chỉ là rủi ro tĩnh, chưa xác nhận bug.
 
-Đã hoàn thành đến Step 1. Các Step sau chưa được đưa vào phiên bản commit này.
+Đã hoàn thành đến Step 2. Các Step sau chưa được đưa vào phiên bản commit này.

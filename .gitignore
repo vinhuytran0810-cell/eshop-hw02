@@ -1,0 +1,14 @@
+# Ignore everything in the repository root
+/*
+
+# Track HW02 deliverables
+!/hw02-domain-testing/
+
+# Track this Git configuration
+!/.gitignore
+
+# Ignore runtime and sensitive files inside HW02
+/hw02-domain-testing/**/node_modules/
+/hw02-domain-testing/**/.env
+/hw02-domain-testing/**/.env.*
+/hw02-domain-testing/**/database.sqlite
